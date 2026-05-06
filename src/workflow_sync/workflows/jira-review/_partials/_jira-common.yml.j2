@@ -53,10 +53,18 @@
         LABELS=$(echo "$RESPONSE"     | jq -r '[.fields.labels[]?] | if length == 0 then "None" else join(", ") end')
         COMPONENTS=$(echo "$RESPONSE" | jq -r '[.fields.components[]?.name] | if length == 0 then "None" else join(", ") end')
 
-        # ADF description → plain text (preserve paragraph line breaks)
-        DESCRIPTION=$(echo "$RESPONSE" | \
-          jq -r '[.fields.description.content[]? | [.. | .text? // empty] | join("")] | join("\n\n")' 2>/dev/null \
-          || echo "No description available")
+        # ADF description → plain text (preserve paragraphs, bullets, and hard breaks)
+        DESCRIPTION=$(echo "$RESPONSE" | jq -r '
+          def node_text:
+            if .type == "text" then (.text // "")
+            elif .type == "hardBreak" then "\n"
+            elif .type == "listItem" then "- " + ([.content[]? | node_text] | join(""))
+            elif .type == "bulletList" or .type == "orderedList" then ([.content[]? | node_text] | join("\n"))
+            elif .content then ([.content[]? | node_text] | join(""))
+            else ""
+            end;
+          [.fields.description.content[]? | node_text] | join("\n\n")
+        ' 2>/dev/null || echo "No description available")
 
         echo "summary=$SUMMARY"         >> $GITHUB_OUTPUT
         echo "type=$TYPE"               >> $GITHUB_OUTPUT
