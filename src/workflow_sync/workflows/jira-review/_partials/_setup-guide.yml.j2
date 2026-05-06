@@ -75,6 +75,18 @@
     #   • The repository must have Copilot enabled.
     #   See: https://docs.github.com/en/copilot/using-github-copilot/code-review
     #
+    # ⚠️  Common error: "Reviews may only be requested from collaborators"
+    #   This means 'copilot-pull-request-reviewer' is not recognized in your
+    #   repository. This happens when:
+    #     - Your GitHub plan does not include Copilot Enterprise or a
+    #       Copilot Business plan with code review enabled.
+    #     - The repository is personal (not under an organization), and
+    #       GitHub Copilot code review is not available for personal repos.
+    #     - The feature has not been enabled at the org level (see above).
+    #   The workflow handles this gracefully — a warning is logged and the
+    #   job continues. No action is required unless you intend to use Copilot
+    #   code review; in that case, verify your plan and org settings.
+    #
 {% endif %}
     # -----------------------------------------------------------------------
     # SUMMARY OF SECRETS FOR THIS WORKFLOW  (mode: {{ options.mode }})

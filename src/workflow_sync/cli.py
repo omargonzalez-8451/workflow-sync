@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import click
+import git
 import yaml
 from pydantic import ValidationError
 from rich.console import Console
@@ -278,6 +279,28 @@ def sync_cmd(
     except Exception as exc:  # noqa: BLE001
         console.print(f"[red]✗  Config error:[/red] {exc}")
         raise SystemExit(1) from exc
+
+    # Validate that we are on main with a clean working tree before doing anything.
+    try:
+        local_repo = git.Repo(search_parent_directories=True)
+    except git.InvalidGitRepositoryError:
+        console.print("[red]✗[/red]  Not inside a git repository.")
+        raise SystemExit(1)
+
+    current_branch = local_repo.active_branch.name
+    if current_branch != "main":
+        console.print(
+            f"[red]✗[/red]  Local branch is [bold]{current_branch}[/bold]. "
+            "Switch to [bold]main[/bold] before running sync."
+        )
+        raise SystemExit(1)
+
+    if local_repo.is_dirty(untracked_files=True):
+        console.print(
+            "[red]✗[/red]  Working tree has uncommitted changes. "
+            "Commit or stash them before running sync."
+        )
+        raise SystemExit(1)
 
     if dry_run:
         console.print(
