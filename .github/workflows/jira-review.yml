@@ -1,6 +1,6 @@
 # id: jira-review
 # title: JIRA Validator — AI Code Review
-# version: 2.0.4
+# version: 2.0.5
 # description: Validates PR branch against JIRA ticket requirements and runs an AI code review. Set options.mode to 'copilot' (default), 'anthropic', or 'anthropic-agentic'.
 name: JIRA Validator — AI Code Review
 
@@ -161,20 +161,26 @@ jobs:
         fi
         TICKET="${{ steps.jira.outputs.ticket }}"
         RESPONSE=$(curl -sf -u "$JIRA_USER:$JIRA_TOKEN" \
-          "$JIRA_BASE_URL/rest/api/3/issue/$TICKET?fields=summary,description,status,acceptance_criteria" \
+          "$JIRA_BASE_URL/rest/api/3/issue/$TICKET?fields=summary,description,issuetype,priority,labels,components" \
           -H "Accept: application/json")
 
-        SUMMARY=$(echo "$RESPONSE" | jq -r '.fields.summary // "N/A"')
-        STATUS=$(echo "$RESPONSE"  | jq -r '.fields.status.name // "N/A"')
+        SUMMARY=$(echo "$RESPONSE"    | jq -r '.fields.summary // "N/A"')
+        TYPE=$(echo "$RESPONSE"       | jq -r '.fields.issuetype.name // "N/A"')
+        PRIORITY=$(echo "$RESPONSE"   | jq -r '.fields.priority.name // "N/A"')
+        LABELS=$(echo "$RESPONSE"     | jq -r '[.fields.labels[]?] | if length == 0 then "None" else join(", ") end')
+        COMPONENTS=$(echo "$RESPONSE" | jq -r '[.fields.components[]?.name] | if length == 0 then "None" else join(", ") end')
 
-        # ADF description → plain text (best-effort first paragraph)
+        # ADF description → plain text (preserve paragraph line breaks)
         DESCRIPTION=$(echo "$RESPONSE" | \
-          jq -r '[.fields.description.content[]? | .. | .text? // empty] | join(" ")' 2>/dev/null \
+          jq -r '[.fields.description.content[]? | [.. | .text? // empty] | join("")] | join("\n\n")' 2>/dev/null \
           || echo "No description available")
 
-        echo "summary=$SUMMARY"   >> $GITHUB_OUTPUT
-        echo "status=$STATUS"     >> $GITHUB_OUTPUT
-        echo "found=true"         >> $GITHUB_OUTPUT
+        echo "summary=$SUMMARY"         >> $GITHUB_OUTPUT
+        echo "type=$TYPE"               >> $GITHUB_OUTPUT
+        echo "priority=$PRIORITY"       >> $GITHUB_OUTPUT
+        echo "labels=$LABELS"           >> $GITHUB_OUTPUT
+        echo "components=$COMPONENTS"   >> $GITHUB_OUTPUT
+        echo "found=true"               >> $GITHUB_OUTPUT
         # Write to file to avoid env-size limits on long descriptions
         printf '%s' "$DESCRIPTION" > /tmp/jira_description.txt
 
@@ -188,12 +194,16 @@ jobs:
       uses: actions/github-script@v7
       with:
         script: |
-          const fs      = require('fs');
-          const ticket  = '${{ steps.jira.outputs.ticket }}';
-          const summary = `${{ steps.jira-data.outputs.summary }}`;
-          const status  = '${{ steps.jira-data.outputs.status }}';
-          const baseUrl = '${{ secrets.JIRA_BASE_URL }}';
-          const desc    = fs.readFileSync('/tmp/jira_description.txt', 'utf8').trim();
+          const fs         = require('fs');
+          const ticket     = '${{ steps.jira.outputs.ticket }}';
+          const summary    = `${{ steps.jira-data.outputs.summary }}`;
+          const type       = '${{ steps.jira-data.outputs.type }}';
+          const priority   = '${{ steps.jira-data.outputs.priority }}';
+          const labels     = '${{ steps.jira-data.outputs.labels }}';
+          const components = '${{ steps.jira-data.outputs.components }}';
+          const baseUrl    = '${{ secrets.JIRA_BASE_URL }}';
+          // Read from file to preserve line breaks and avoid env-size limits
+          const desc = fs.readFileSync('/tmp/jira_description.txt', 'utf8').trim();
 
           const { data: pr } = await github.rest.pulls.get({
             owner: context.repo.owner,
@@ -213,11 +223,15 @@ jobs:
             `## 🎫 JIRA: [${ticket}](${baseUrl}/browse/${ticket})`,
             `| Field | Value |`,
             `|-------|-------|`,
-            `| **Summary** | ${summary} |`,
-            `| **Status**  | ${status}  |`,
+            `| **Type**       | ${type}       |`,
+            `| **Summary**    | ${summary}    |`,
+            `| **Priority**   | ${priority}   |`,
+            `| **Labels**     | ${labels}     |`,
+            `| **Components** | ${components} |`,
             ``,
-            `### Requirements`,
-            desc,
+            `### Description / Requirements`,
+            // desc may contain \n\n paragraph breaks — join array then append as-is
+            desc || '_No description available._',
             ``,
             `---`,
             `> **<!-- AI review instruction -->**`,
