@@ -238,7 +238,9 @@ def _sync_workflow(ctx: SyncWorkflowContext) -> SyncAction:
             "branch": ctx.base_branch,
         }
 
-    branch_name = f"{ctx.branch_prefix}{ctx.workflow_name}-v{template_version}".replace("/", "-")
+    branch_name = f"{ctx.branch_prefix}{ctx.workflow_name}-v{template_version}".replace(
+        "/", "-"
+    )
 
     # Always branch off the latest base branch
     ctx.git_repo.git.checkout(ctx.base_branch)
@@ -454,7 +456,13 @@ def sync_all(
     for repo_config in repos:
         console.print(f"\n[bold]▶ {repo_config.name}[/bold]  ({repo_config.language})")
         results[repo_config.name] = sync_repo(
-            repo_config, config, workflows_dir, dry_run=dry_run, cache_dir=cache_dir, branch_prefix=branch_prefix, auto_push=auto_push
+            repo_config,
+            config,
+            workflows_dir,
+            dry_run=dry_run,
+            cache_dir=cache_dir,
+            branch_prefix=branch_prefix,
+            auto_push=auto_push,
         )
 
     return results

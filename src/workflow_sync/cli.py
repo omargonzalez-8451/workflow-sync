@@ -61,7 +61,9 @@ def _write_sync_log(
                 details = action.get(
                     "branch", action.get("error", action.get("reason", ""))
                 )
-            lines.append(f"| {repo_name} | {action.get('workflow', '—')} | {status} | {details or ''} |")
+            lines.append(
+                f"| {repo_name} | {action.get('workflow', '—')} | {status} | {details or ''} |"
+            )
 
     # PR links
     pr_links = [
@@ -255,7 +257,13 @@ def validate_cmd(config: str, workflows_dir: str) -> None:
     help="Push changes directly to the main branch instead of opening a PR branch.",
 )
 def sync_cmd(
-    config: str, workflows_dir: str, dry_run: bool, repo: str | None, cache_dir: str, branch_prefix: str, auto_push: bool
+    config: str,
+    workflows_dir: str,
+    dry_run: bool,
+    repo: str | None,
+    cache_dir: str,
+    branch_prefix: str,
+    auto_push: bool,
 ) -> None:
     """Fetch/pull repos and push workflow updates as new branches."""
     config_path = Path(config)
@@ -280,7 +288,9 @@ def sync_cmd(
         console.print(
             "[bold red]WARNING:[/bold red] --auto-push will commit directly to the main branch without a PR."
         )
-        confirmed = click.confirm("Are you sure you want to push directly to main?", default=False)
+        confirmed = click.confirm(
+            "Are you sure you want to push directly to main?", default=False
+        )
         if not confirmed:
             console.print("[yellow]Aborted.[/yellow]")
             raise SystemExit(0)
@@ -291,7 +301,13 @@ def sync_cmd(
         console.print(f"[dim]repo cache:[/dim]  {cache_path.resolve()}")
 
     results = sync_all(
-        cfg, workflows_path, dry_run=dry_run, only_repo=repo, cache_dir=cache_path, branch_prefix=branch_prefix, auto_push=auto_push
+        cfg,
+        workflows_path,
+        dry_run=dry_run,
+        only_repo=repo,
+        cache_dir=cache_path,
+        branch_prefix=branch_prefix,
+        auto_push=auto_push,
     )
 
     # Totals table
@@ -364,6 +380,8 @@ def sync_cmd(
             console.print(f"  [cyan]{repo_name}[/cyan] / [magenta]{workflow}[/magenta]")
             console.print(f"  [link={url}]{url}[/link]")
 
-    log_path = _write_sync_log(results, dry_run=dry_run, auto_push=auto_push, config=config)
+    log_path = _write_sync_log(
+        results, dry_run=dry_run, auto_push=auto_push, config=config
+    )
     console.print()
     console.print(f"[dim]log written:[/dim]  {log_path}")
