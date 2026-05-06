@@ -12,7 +12,7 @@ WORKFLOW_DEF = WorkflowDefinition(
         "Validates PR branch against JIRA ticket requirements and runs an AI code review. "
         "Set options.mode to 'copilot' (default), 'anthropic', or 'anthropic-agentic'."
     ),
-    version="2.0.1",
+    version="2.0.2",
 )
 
 # Maps each Anthropic mode to the default model ID.
@@ -34,6 +34,11 @@ class JiraReviewOptions(BaseWorkflowOptions):
     mode: Literal["copilot", "anthropic", "anthropic-agentic"] = Field(
         default="copilot",
         description="Review strategy: 'copilot' | 'anthropic' | 'anthropic-agentic'",
+    )
+
+    environment: str | None = Field(
+        default="all",
+        description="GitHub Environment name where JIRA secrets are stored (required if secrets were added to an environment rather than the repository directly)",
     )
 
     @computed_field  # type: ignore[prop-decorator]

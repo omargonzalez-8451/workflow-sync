@@ -11,7 +11,7 @@ WORKFLOW_DEF = WorkflowDefinition(
         "Runs linting and format checks. Supports 'python' (ruff) and 'node' (eslint/prettier). "
         "Validated at config time — repo.language must be 'python' or 'node'."
     ),
-    version="1.0.2",
+    version="1.0.3",
     supported_languages=[Language.PYTHON, Language.JAVASCRIPT, Language.TYPESCRIPT],
 )
 

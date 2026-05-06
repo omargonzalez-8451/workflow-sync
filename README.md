@@ -207,6 +207,65 @@ workflow-sync sync --dry-run    # preview what would be pushed
 workflow-sync sync              # create branches and push
 ```
 
+## Editing an existing workflow
+
+Use this process when you need to modify a workflow template (e.g. updating steps, adding inputs, or changing job configuration).
+
+### 1. Edit the workflow template
+
+Make your changes in the workflow's Jinja2 template and any relevant partials:
+
+```
+src/workflow_sync/workflows/<name>/workflow.yml.j2
+src/workflow_sync/workflows/<name>/_partials/
+```
+
+### 2. Bump the version in the workflow schema
+
+Increment the `# version:` header in the template. This is what `workflow-sync` compares against the deployed version to decide whether to open a PR:
+
+```yaml
+{% extends '_common_partials/_workflow-base.yml.j2' %}
+{# version is declared in the sync_header block of the base template #}
+```
+
+Update the version in `src/workflow_sync/workflows/<name>/schemas.py` if the options schema changed as well.
+
+### 3. Open a PR and get a code review for the workflow changes
+
+Commit your template edits on a feature branch, open a PR, and get it reviewed and merged before running the sync.
+
+### 4. Before running, make sure you are on `main` and up to date
+
+```bash
+git checkout main
+git pull
+```
+
+### 5. Dry-run the sync and verify
+
+Preview what branches and commits would be created without pushing anything:
+
+```bash
+workflow-sync sync --dry-run
+```
+
+Review the output and confirm the correct repos and workflow versions are listed.
+
+### 6. Run the sync
+
+```bash
+workflow-sync sync
+```
+
+This creates a branch `chore/workflow-sync/<name>-v<version>` in each affected repo, renders the template, commits, and pushes.
+
+### 7. Open PRs for all new changes
+
+For each repo that received a new branch, open a pull request targeting that repo's default branch so the updated workflow can be reviewed and merged.
+
+---
+
 ## Editor setup
 
 ### VS Code

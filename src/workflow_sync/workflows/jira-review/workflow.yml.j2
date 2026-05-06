@@ -9,6 +9,9 @@ jobs:
   jira-validate-and-review:
     name: Fetch JIRA ticket & run {{ options.mode }} review
     runs-on: {{ options.runs_on }}
+{% if options.environment %}
+    environment: {{ options.environment }}
+{% endif %}
     permissions:
       pull-requests: write
       contents: read
@@ -17,6 +20,7 @@ jobs:
 {% endif %}
 
     steps:
+{% include '_partials/_setup-guide.yml.j2' %}
 {% include '_partials/_jira-common.yml.j2' %}
 
 {% if options.mode == 'copilot' %}

@@ -2,7 +2,20 @@
     # 4. Agentic Claude review via the official Anthropic GitHub Action
     #    https://github.com/anthropics/claude-code-action
     # -----------------------------------------------------------------------
+    - name: Check Anthropic API key
+      id: check-anthropic
+      env:
+        ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      run: |
+        if [ -z "$ANTHROPIC_API_KEY" ]; then
+          echo "⚠️  ANTHROPIC_API_KEY secret not configured — skipping agentic review"
+          echo "configured=false" >> $GITHUB_OUTPUT
+        else
+          echo "configured=true" >> $GITHUB_OUTPUT
+        fi
+
     - name: Agentic Claude code review
+      if: steps.check-anthropic.outputs.configured == 'true'
       uses: anthropics/claude-code-action@beta
       with:
         anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}

@@ -9,6 +9,11 @@
       uses: actions/github-script@v7
       with:
         script: |
+          if (!process.env.ANTHROPIC_API_KEY) {
+            console.warn('⚠️  ANTHROPIC_API_KEY secret not configured — skipping Claude review');
+            return;
+          }
+
           const { execSync } = require('child_process');
           const https = require('https');
 
