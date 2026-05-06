@@ -304,9 +304,7 @@ def sync_cmd(
 
     tracking = local_repo.active_branch.tracking_branch()
     if tracking is not None:
-        ahead_commits = list(
-            local_repo.iter_commits(f"{tracking}..HEAD")
-        )
+        ahead_commits = list(local_repo.iter_commits(f"{tracking}..HEAD"))
         if ahead_commits:
             console.print(
                 f"[red]✗[/red]  Local [bold]main[/bold] has {len(ahead_commits)} unpushed "
