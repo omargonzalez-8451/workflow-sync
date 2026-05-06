@@ -187,7 +187,9 @@ class Repo(BaseModel):
         for wf in self.workflows:
             if wf.definition and wf.definition.supported_languages:
                 if self.language not in wf.definition.supported_languages:
-                    allowed = ", ".join(f"'{l}'" for l in wf.definition.supported_languages)
+                    allowed = ", ".join(
+                        f"'{l}'" for l in wf.definition.supported_languages
+                    )
                     raise ValueError(
                         f"workflow '{wf.name}' only supports languages [{allowed}], "
                         f"but repo '{self.name}' has language '{self.language}'"

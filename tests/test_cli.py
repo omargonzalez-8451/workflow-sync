@@ -27,7 +27,9 @@ class TestValidateCmdErrorMessages:
                     {
                         "url": "git@github.com:org/my-repo.git",
                         "language": "python",
-                        "workflows": [{"name": "jira-review", "options": {"mode": "bad-mode"}}],
+                        "workflows": [
+                            {"name": "jira-review", "options": {"mode": "bad-mode"}}
+                        ],
                     }
                 ]
             },
@@ -44,7 +46,9 @@ class TestValidateCmdErrorMessages:
                     {
                         "url": "git@github.com:org/my-repo.git",
                         "language": "python",
-                        "workflows": [{"name": "jira-review", "options": {"mode": "bad-mode"}}],
+                        "workflows": [
+                            {"name": "jira-review", "options": {"mode": "bad-mode"}}
+                        ],
                     }
                 ]
             },
@@ -105,6 +109,8 @@ class TestValidateCmdErrorMessages:
         assert "Schema valid" in result.output
 
     def test_missing_config_file(self, runner, tmp_path):
-        result = runner.invoke(cli, ["validate", "--config", str(tmp_path / "nope.yaml")])
+        result = runner.invoke(
+            cli, ["validate", "--config", str(tmp_path / "nope.yaml")]
+        )
         assert result.exit_code != 0
         assert "not found" in result.output

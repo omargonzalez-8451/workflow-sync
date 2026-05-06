@@ -1,27 +1,27 @@
-      # -----------------------------------------------------------------------
-      # 4. Agentic Claude review via the official Anthropic GitHub Action
-      #    https://github.com/anthropics/claude-code-action
-      # -----------------------------------------------------------------------
-      - name: Agentic Claude code review
-        uses: anthropics/claude-code-action@beta
-        with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          model: {{ options.model }}
-          prompt: |
-            You are performing an agentic code review for a pull request.
+    # -----------------------------------------------------------------------
+    # 4. Agentic Claude review via the official Anthropic GitHub Action
+    #    https://github.com/anthropics/claude-code-action
+    # -----------------------------------------------------------------------
+    - name: Agentic Claude code review
+      uses: anthropics/claude-code-action@beta
+      with:
+        anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+        model: {{ options.model }}
+        prompt: |
+          You are performing an agentic code review for a pull request.
 
-            **JIRA Ticket:** ${{ steps.jira.outputs.ticket }}
-            **Requirements:**
-            ${{ steps.pr-update.outputs.jira_requirements }}
+          **JIRA Ticket:** ${{ steps.jira.outputs.ticket }}
+          **Requirements:**
+          ${{ steps.pr-update.outputs.jira_requirements }}
 
-            Your tasks:
-            1. Explore the repository structure to understand the codebase.
-            2. Examine the diff introduced by this PR (`git diff origin/${{ github.base_ref }}...HEAD`).
-            3. Verify that every requirement from the JIRA ticket is addressed.
-            4. Check for bugs, security vulnerabilities, and code quality issues.
-            5. Post a structured review comment on the PR with:
-               - ✅ Requirements met
-               - ❌ Requirements missing or incomplete
-               - ⚠️  Bugs / security issues found
-               - 💡 Suggestions for improvement
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          Your tasks:
+          1. Explore the repository structure to understand the codebase.
+          2. Examine the diff introduced by this PR (`git diff origin/${{ github.base_ref }}...HEAD`).
+          3. Verify that every requirement from the JIRA ticket is addressed.
+          4. Check for bugs, security vulnerabilities, and code quality issues.
+          5. Post a structured review comment on the PR with:
+             - ✅ Requirements met
+             - ❌ Requirements missing or incomplete
+             - ⚠️  Bugs / security issues found
+             - 💡 Suggestions for improvement
+        github_token: ${{ secrets.GITHUB_TOKEN }}

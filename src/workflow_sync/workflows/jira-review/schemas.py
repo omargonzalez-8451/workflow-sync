@@ -12,7 +12,7 @@ WORKFLOW_DEF = WorkflowDefinition(
         "Validates PR branch against JIRA ticket requirements and runs an AI code review. "
         "Set options.mode to 'copilot' (default), 'anthropic', or 'anthropic-agentic'."
     ),
-    version="2.0.0",
+    version="2.0.1",
 )
 
 # Maps each Anthropic mode to the default model ID.

@@ -1,29 +1,29 @@
 {% extends '_common_partials/_workflow-base.yml.j2' %}
 
 {% block workflow_content %}
-  on:
-    pull_request:
-      types: [opened, synchronize, reopened, edited]
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
 
-  jobs:
-    jira-validate-and-review:
-      name: Fetch JIRA ticket & run {{ options.mode }} review
-      runs-on: {{ options.runs_on }}
-      permissions:
-        pull-requests: write
-        contents: read
-  {% if options.mode == 'anthropic-agentic' %}
-        issues: write
-  {% endif %}
+jobs:
+  jira-validate-and-review:
+    name: Fetch JIRA ticket & run {{ options.mode }} review
+    runs-on: {{ options.runs_on }}
+    permissions:
+      pull-requests: write
+      contents: read
+{% if options.mode == 'anthropic-agentic' %}
+      issues: write
+{% endif %}
 
-      steps:
-  {% include '_partials/_jira-common.yml.j2' %}
+    steps:
+{% include '_partials/_jira-common.yml.j2' %}
 
-  {% if options.mode == 'copilot' %}
-    {% include '_partials/_review-copilot.yml.j2' %}
-  {% elif options.mode == 'anthropic' %}
-    {% include '_partials/_review-anthropic.yml.j2' %}
-  {% elif options.mode == 'anthropic-agentic' %}
-    {% include '_partials/_review-anthropic-agentic.yml.j2' %}
-  {% endif %}
+{% if options.mode == 'copilot' %}
+  {% include '_partials/_review-copilot.yml.j2' %}
+{% elif options.mode == 'anthropic' %}
+  {% include '_partials/_review-anthropic.yml.j2' %}
+{% elif options.mode == 'anthropic-agentic' %}
+  {% include '_partials/_review-anthropic-agentic.yml.j2' %}
+{% endif %}
 {% endblock %}
