@@ -1,6 +1,6 @@
 # id: lint
 # title: Lint
-# version: 1.0.0
+# version: 1.0.1
 # description: Runs linting and format checks. Supports 'python' (ruff) and 'node' (eslint/prettier). Validated at config time — repo.language must be 'python' or 'node'.
 name: Lint
 
@@ -28,9 +28,9 @@ jobs:
         run: pip install ruff==0.4.4
 
       - name: Run ruff lint
-        run: ruff check .
+        run: ruff check . --target-version py312
 
       - name: Run ruff format check
-        run: ruff format --check .
+        run: ruff format --check . --target-version py312
 
 
