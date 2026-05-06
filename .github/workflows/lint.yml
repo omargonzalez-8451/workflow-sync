@@ -1,0 +1,36 @@
+# id: lint
+# title: Lint
+# version: 1.0.0
+# description: Runs linting and format checks. Supports 'python' (ruff) and 'node' (eslint/prettier). Validated at config time — repo.language must be 'python' or 'node'.
+name: Lint
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [main]
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install ruff
+        run: pip install ruff==0.4.4
+
+      - name: Run ruff lint
+        run: ruff check .
+
+      - name: Run ruff format check
+        run: ruff format --check .
+
+
