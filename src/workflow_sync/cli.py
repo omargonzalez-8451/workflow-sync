@@ -302,6 +302,18 @@ def sync_cmd(
         )
         raise SystemExit(1)
 
+    tracking = local_repo.active_branch.tracking_branch()
+    if tracking is not None:
+        ahead_commits = list(
+            local_repo.iter_commits(f"{tracking}..HEAD")
+        )
+        if ahead_commits:
+            console.print(
+                f"[red]✗[/red]  Local [bold]main[/bold] has {len(ahead_commits)} unpushed "
+                f"commit(s) ahead of [bold]{tracking}[/bold]. Push them before running sync."
+            )
+            raise SystemExit(1)
+
     if dry_run:
         console.print(
             "[bold yellow]dry-run mode — no changes will be pushed[/bold yellow]"
