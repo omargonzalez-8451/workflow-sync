@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import git
+import yaml
 from rich.console import Console
 
 from .renderer import (
@@ -71,6 +72,9 @@ def _is_version_bump_only(old_content: str, new_content: str) -> bool:
     return True
 
 
+_DEFAULT_BRANCH_PREFIX = "NOJIRA-WS-"
+
+
 @dataclass
 class SyncWorkflowContext:
     """All inputs needed to sync a single workflow template into a cloned repo."""
@@ -84,7 +88,9 @@ class SyncWorkflowContext:
     target_dir: Path
     base_branch: str
     dry_run: bool
+    branch_prefix: str = _DEFAULT_BRANCH_PREFIX
     workflow_def: "WorkflowDefinition | None" = None
+    auto_push: bool = False
 
 
 def _clone_or_update(url: str, clone_path: Path, *, cached: bool) -> git.Repo:
@@ -159,34 +165,17 @@ def _sync_workflow(ctx: SyncWorkflowContext) -> SyncAction:
         }
 
     deployed_version = (
-        parse_deployed_meta(deployed_content).get("version", "none")
+        parse_deployed_meta(deployed_content).get("version")
         if deployed_content
-        else "none"
+        else None
     )
+    from_label = f"v{deployed_version}" if deployed_version else "new"
     console.print(
         f"    [yellow]↑[/yellow]  {ctx.workflow_name}  "
-        f"v{deployed_version} → v{template_version}"
+        f"{from_label} → v{template_version}"
     )
 
-    if ctx.dry_run:
-        return {
-            "workflow": ctx.workflow_name,
-            "status": "would_update",
-            "from_version": deployed_version,
-            "to_version": template_version,
-        }
-
-    branch_name = f"chore/workflow-sync/{ctx.workflow_name}-v{template_version}"
-
-    # Always branch off the latest base branch
-    ctx.git_repo.git.checkout(ctx.base_branch)
-    try:
-        ctx.git_repo.git.checkout("-b", branch_name)
-    except git.GitCommandError:
-        # Branch already exists locally – reuse it
-        ctx.git_repo.git.checkout(branch_name)
-
-    # Render and write
+    # Render and validate YAML syntax (runs for both dry-run and real runs)
     context = {
         "repo": ctx.repo_config,
         "meta": meta,
@@ -196,20 +185,74 @@ def _sync_workflow(ctx: SyncWorkflowContext) -> SyncAction:
     rendered = render_template(
         template_file, context, extra_search_paths=[ctx.workflows_dir]
     )
+    try:
+        yaml.safe_load(rendered)
+        console.print(f"    [green]✓[/green]  {ctx.workflow_name}  YAML syntax OK")
+    except yaml.YAMLError as exc:
+        console.print(
+            f"    [bold red]✗[/bold red]  {ctx.workflow_name}  invalid YAML: {exc}"
+        )
+        return {
+            "workflow": ctx.workflow_name,
+            "status": "error",
+            "reason": "invalid_yaml",
+            "detail": str(exc),
+        }
+
+    if ctx.dry_run:
+        return {
+            "workflow": ctx.workflow_name,
+            "status": "would_update",
+            "from_version": deployed_version,
+            "to_version": template_version,
+        }
+
     version_bump_only = deployed_content is not None and _is_version_bump_only(
         deployed_content, rendered
     )
     ctx.target_dir.mkdir(parents=True, exist_ok=True)
     output_file.write_text(rendered)
 
-    # Commit
-    relative_path = str(output_file.relative_to(ctx.clone_path))
-    ctx.git_repo.index.add([relative_path])
     commit_msg = (
         f"chore: bump {title} workflow to v{template_version}"
         if version_bump_only
         else f"chore: sync {title} workflow to v{template_version}"
     )
+
+    if ctx.auto_push:
+        # Push directly to the base branch (no feature branch, no PR)
+        ctx.git_repo.git.checkout(ctx.base_branch)
+        relative_path = str(output_file.relative_to(ctx.clone_path))
+        ctx.git_repo.index.add([relative_path])
+        ctx.git_repo.index.commit(f"{commit_msg}\n\nAutomated by workflow-sync")
+        origin = ctx.git_repo.remote("origin")
+        origin.push(refspec=f"{ctx.base_branch}:{ctx.base_branch}")
+        console.print(
+            f"    [bold green]✓[/bold green]  pushed directly to '{ctx.base_branch}'"
+        )
+        return {
+            "workflow": ctx.workflow_name,
+            "status": "pushed_to_main",
+            "from_version": deployed_version,
+            "to_version": template_version,
+            "branch": ctx.base_branch,
+        }
+
+    branch_name = f"{ctx.branch_prefix}{ctx.workflow_name}-v{template_version}".replace(
+        "/", "-"
+    )
+
+    # Always branch off the latest base branch
+    ctx.git_repo.git.checkout(ctx.base_branch)
+    try:
+        ctx.git_repo.git.checkout("-b", branch_name)
+    except git.GitCommandError:
+        # Branch already exists locally – reuse it
+        ctx.git_repo.git.checkout(branch_name)
+
+    # Commit
+    relative_path = str(output_file.relative_to(ctx.clone_path))
+    ctx.git_repo.index.add([relative_path])
     ctx.git_repo.index.commit(f"{commit_msg}\n\nAutomated by workflow-sync")
 
     # Push
@@ -285,6 +328,8 @@ def sync_repo(
     *,
     dry_run: bool = False,
     cache_dir: Path | None = None,
+    branch_prefix: str = _DEFAULT_BRANCH_PREFIX,
+    auto_push: bool = False,
 ) -> list[SyncAction]:
     """Clone (or update from cache) *repo_config.url*, then sync every referenced workflow.
 
@@ -367,7 +412,9 @@ def sync_repo(
                     target_dir=wf_target_dir,
                     base_branch=wf_base_branch,
                     dry_run=dry_run,
+                    branch_prefix=branch_prefix,
                     workflow_def=wf_ref.definition,
+                    auto_push=auto_push,
                 )
             )
             actions.append(action)
@@ -382,6 +429,8 @@ def sync_all(
     dry_run: bool = False,
     only_repo: str | None = None,
     cache_dir: Path | None = None,
+    branch_prefix: str = _DEFAULT_BRANCH_PREFIX,
+    auto_push: bool = False,
 ) -> dict[str, list[SyncAction]]:
     """Sync workflows for all (or one) repo(s) in *config*.
 
@@ -407,7 +456,13 @@ def sync_all(
     for repo_config in repos:
         console.print(f"\n[bold]▶ {repo_config.name}[/bold]  ({repo_config.language})")
         results[repo_config.name] = sync_repo(
-            repo_config, config, workflows_dir, dry_run=dry_run, cache_dir=cache_dir
+            repo_config,
+            config,
+            workflows_dir,
+            dry_run=dry_run,
+            cache_dir=cache_dir,
+            branch_prefix=branch_prefix,
+            auto_push=auto_push,
         )
 
     return results

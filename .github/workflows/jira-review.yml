@@ -1,0 +1,250 @@
+# id: jira-review
+# title: JIRA Validator — AI Code Review
+# version: 2.0.3
+# description: Validates PR branch against JIRA ticket requirements and runs an AI code review. Set options.mode to 'copilot' (default), 'anthropic', or 'anthropic-agentic'.
+name: JIRA Validator — AI Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+
+jobs:
+  jira-validate-and-review:
+    name: Fetch JIRA ticket & run copilot review
+    runs-on: ubuntu-latest
+
+    environment: all
+
+    permissions:
+      pull-requests: write
+      contents: read
+
+
+    steps:
+    # =======================================================================
+    # SETUP GUIDE — Required secrets & configuration
+    # =======================================================================
+    #
+    # This workflow requires several GitHub Actions secrets to be configured
+    # in your repository (Settings → Secrets and variables → Actions → New
+    # repository secret).
+    #
+    # -----------------------------------------------------------------------
+    # JIRA SECRETS  (required for all modes)
+    # -----------------------------------------------------------------------
+    #
+    # JIRA_BASE_URL
+    #   Your Atlassian instance base URL — no trailing slash.
+    #   Example: https://your-org.atlassian.net
+    #
+    # JIRA_USER
+    #   The email address of the Atlassian account used for API calls.
+    #   Example: ci-bot@your-org.com
+    #
+    # JIRA_TOKEN
+    #   An Atlassian API token for the account above.
+    #   Generate one at: https://id.atlassian.com/manage-profile/security/api-tokens
+    #   ⚠️  This is NOT your Atlassian password — you must create a dedicated
+    #       API token. Tokens can be scoped to read-only if desired.
+    #
+    # How to verify JIRA credentials locally:
+    #   curl -u "you@org.com:YOUR_TOKEN" \
+    #        "https://your-org.atlassian.net/rest/api/3/myself" \
+    #        -H "Accept: application/json"
+    #   A 200 response with your account info means credentials are correct.
+    #
+    # -----------------------------------------------------------------------
+    # BRANCH NAMING CONVENTION
+    # -----------------------------------------------------------------------
+    #
+    # The workflow extracts the JIRA ticket key from the PR branch name.
+    # Your branch must contain a key matching [A-Z]{2,10}-[0-9]+, e.g.:
+    #
+    #   SCRUM-42-add-login-page       ✅  detected as SCRUM-42
+    #   feature/PROJ-7-refactor-auth  ✅  detected as PROJ-7
+    #   NOJIRA-cleanup-readme         ⏭️  explicitly skipped
+    #   fix-typo                      ⚠️  no key found, JIRA steps skipped
+    #
+
+
+    # -----------------------------------------------------------------------
+    # COPILOT REVIEWER  (required for mode: copilot)
+    # -----------------------------------------------------------------------
+    #
+    # No additional secrets are needed — this mode uses the built-in
+    # GITHUB_TOKEN and requests 'copilot-pull-request-reviewer' as a reviewer.
+    #
+    # Requirements:
+    #   • Your GitHub plan must include Copilot code review (GitHub Copilot
+    #     Enterprise or a compatible Copilot Business plan).
+    #   • The Copilot reviewer feature must be enabled for your organization:
+    #     Org Settings → Copilot → Policies → "Enable Copilot pull request
+    #     review suggestions"
+    #   • The repository must have Copilot enabled.
+    #   See: https://docs.github.com/en/copilot/using-github-copilot/code-review
+    #
+
+    # -----------------------------------------------------------------------
+    # SUMMARY OF SECRETS FOR THIS WORKFLOW  (mode: copilot)
+    # -----------------------------------------------------------------------
+    #
+    # Secret name         Required   Description
+    # ------------------  ---------  ----------------------------------------
+    # JIRA_BASE_URL       ✅ yes     Atlassian instance URL
+    # JIRA_USER           ✅ yes     Atlassian account email
+    # JIRA_TOKEN          ✅ yes     Atlassian API token
+
+    # ANTHROPIC_API_KEY   ➖ n/a     Not used in copilot mode
+
+    # GITHUB_TOKEN        ✅ auto    Provided automatically by GitHub Actions
+    #
+    # Missing secrets cause steps to be skipped gracefully with a warning
+    # rather than failing the workflow with an error.
+    #
+    # =======================================================================
+
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    # -----------------------------------------------------------------------
+    # 1. Extract JIRA ticket key from the branch name (e.g. PROJ-123-my-feat)
+    #    Branches prefixed with NOJIRA are explicitly skipped.
+    # -----------------------------------------------------------------------
+    - name: Extract JIRA ticket from branch name
+      id: jira
+      run: |
+        BRANCH="${{ github.head_ref }}"
+        if echo "$BRANCH" | grep -qiE '^NOJIRA'; then
+          echo "found=false" >> $GITHUB_OUTPUT
+          echo "⏭️  Branch '$BRANCH' has NOJIRA prefix — skipping JIRA steps"
+          exit 0
+        fi
+        TICKET=$(echo "$BRANCH" | grep -oE '[A-Z]{2,10}-[0-9]+' | head -1)
+        if [ -n "$TICKET" ]; then
+          echo "found=true"  >> $GITHUB_OUTPUT
+          echo "ticket=$TICKET" >> $GITHUB_OUTPUT
+          echo "✅ Found JIRA ticket: $TICKET"
+        else
+          echo "found=false" >> $GITHUB_OUTPUT
+          echo "⚠️  No JIRA ticket key found in branch: $BRANCH — skipping JIRA steps"
+        fi
+
+    # -----------------------------------------------------------------------
+    # 2. Fetch ticket details from JIRA REST API
+    # -----------------------------------------------------------------------
+    - name: Fetch JIRA ticket details
+      id: jira-data
+      if: steps.jira.outputs.found == 'true'
+      env:
+        JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
+        JIRA_USER: ${{ secrets.JIRA_USER }}
+        JIRA_TOKEN: ${{ secrets.JIRA_TOKEN }}
+      run: |
+        if [ -z "$JIRA_BASE_URL" ] || [ -z "$JIRA_USER" ] || [ -z "$JIRA_TOKEN" ]; then
+          echo "⚠️  JIRA secrets not configured — skipping JIRA fetch"
+          echo "found=false" >> $GITHUB_OUTPUT
+          exit 0
+        fi
+        TICKET="${{ steps.jira.outputs.ticket }}"
+        RESPONSE=$(curl -sf -u "$JIRA_USER:$JIRA_TOKEN" \
+          "$JIRA_BASE_URL/rest/api/3/issue/$TICKET?fields=summary,description,status,acceptance_criteria" \
+          -H "Accept: application/json")
+
+        SUMMARY=$(echo "$RESPONSE" | jq -r '.fields.summary // "N/A"')
+        STATUS=$(echo "$RESPONSE"  | jq -r '.fields.status.name // "N/A"')
+
+        # ADF description → plain text (best-effort first paragraph)
+        DESCRIPTION=$(echo "$RESPONSE" | \
+          jq -r '[.fields.description.content[]? | .. | .text? // empty] | join(" ")' 2>/dev/null \
+          || echo "No description available")
+
+        echo "summary=$SUMMARY"   >> $GITHUB_OUTPUT
+        echo "status=$STATUS"     >> $GITHUB_OUTPUT
+        echo "found=true"         >> $GITHUB_OUTPUT
+        # Write to file to avoid env-size limits on long descriptions
+        printf '%s' "$DESCRIPTION" > /tmp/jira_description.txt
+
+    # -----------------------------------------------------------------------
+    # 3. Append JIRA context + AI review instruction to the PR description
+    #    (only when the section is not already present)
+    # -----------------------------------------------------------------------
+    - name: Append JIRA context to PR description
+      id: pr-update
+      if: steps.jira-data.outputs.found == 'true'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs      = require('fs');
+          const ticket  = '${{ steps.jira.outputs.ticket }}';
+          const summary = `${{ steps.jira-data.outputs.summary }}`;
+          const status  = '${{ steps.jira-data.outputs.status }}';
+          const baseUrl = '${{ secrets.JIRA_BASE_URL }}';
+          const desc    = fs.readFileSync('/tmp/jira_description.txt', 'utf8').trim();
+
+          const { data: pr } = await github.rest.pulls.get({
+            owner: context.repo.owner,
+            repo:  context.repo.repo,
+            pull_number: context.issue.number,
+          });
+
+          const marker = `<!-- workflow-sync:jira-section -->`;
+          if ((pr.body || '').includes(marker)) {
+            console.log('JIRA section already present — skipping update');
+            core.setOutput('jira_requirements', desc);
+            return;
+          }
+
+          const jiraSection = [
+            marker,
+            `## 🎫 JIRA: [${ticket}](${baseUrl}/browse/${ticket})`,
+            `| Field | Value |`,
+            `|-------|-------|`,
+            `| **Summary** | ${summary} |`,
+            `| **Status**  | ${status}  |`,
+            ``,
+            `### Requirements`,
+            desc,
+            ``,
+            `---`,
+            `> **<!-- AI review instruction -->**`,
+            `> Review the code changes in this PR and verify they satisfy every requirement`,
+            `> listed in the JIRA ticket above. Call out any acceptance criteria that are`,
+            `> missing, incomplete, or incorrectly implemented.`,
+          ].join('\n');
+
+          await github.rest.pulls.update({
+            owner: context.repo.owner,
+            repo:  context.repo.repo,
+            pull_number: context.issue.number,
+            body: pr.body ? `${pr.body}\n\n${jiraSection}` : jiraSection,
+          });
+          console.log('✅ PR description updated with JIRA context');
+          core.setOutput('jira_requirements', desc);
+
+
+
+      # -----------------------------------------------------------------------
+    # 4. Request GitHub Copilot as a reviewer
+    # -----------------------------------------------------------------------
+    - name: Request Copilot code review
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          try {
+            await github.rest.pulls.requestReviewers({
+              owner: context.repo.owner,
+              repo:  context.repo.repo,
+              pull_number: context.issue.number,
+              reviewers: ['copilot-pull-request-reviewer'],
+            });
+            console.log('✅ Copilot review requested');
+          } catch (err) {
+            // Copilot reviewer may already be assigned or not available on this plan
+            console.warn('⚠️  Could not request Copilot reviewer:', err.message);
+          }
+
+
+

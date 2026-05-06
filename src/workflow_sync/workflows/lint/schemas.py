@@ -11,7 +11,7 @@ WORKFLOW_DEF = WorkflowDefinition(
         "Runs linting and format checks. Supports 'python' (ruff) and 'node' (eslint/prettier). "
         "Validated at config time — repo.language must be 'python' or 'node'."
     ),
-    version="1.0.0",
+    version="1.0.3",
     supported_languages=[Language.PYTHON, Language.JAVASCRIPT, Language.TYPESCRIPT],
 )
 
@@ -24,7 +24,7 @@ class LintOptions(BaseWorkflowOptions):
         description="Python version to set up (python repos only)",
     )
     ruff_version: str = Field(
-        default="0.4.4",
+        default="0.11.10",
         description="Pinned ruff version to install (python repos only)",
     )
     node_version: str = Field(

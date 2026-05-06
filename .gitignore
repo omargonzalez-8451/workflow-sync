@@ -26,6 +26,9 @@ htmlcov/
 # Local cloned repos (used during sync)
 .repos/
 
+# Sync run logs
+sync-logs/
+
 # IDE
 .vscode/
 .idea/

@@ -12,3 +12,9 @@ repos:
         options:
           mode: copilot
       - name: lint
+
+  - url: git@github.com:omargonzalez-8451/workflow-sync.git
+    language: python
+    workflows:
+      - name: jira-review
+      - name: lint

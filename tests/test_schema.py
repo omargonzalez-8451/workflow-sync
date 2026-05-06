@@ -64,7 +64,7 @@ class TestWorkflowRef:
         assert wf.options.runs_on == "ubuntu-latest"
         assert isinstance(wf.definition, WorkflowDefinition)
         assert wf.definition.id == "jira-review"
-        assert wf.definition.version == "2.0.0"
+        assert wf.definition.version == "2.0.1"
         assert wf.definition.name == "JIRA Validator — AI Code Review"
 
     def test_jira_review_anthropic_mode(self):
@@ -100,7 +100,7 @@ class TestWorkflowRef:
         assert entry.options_class is JiraReviewOptions
         assert isinstance(entry.definition, WorkflowDefinition)
         assert entry.definition.id == "jira-review"
-        assert entry.definition.version == "2.0.0"
+        assert entry.definition.version == "2.0.1"
 
 
 class TestRepo:
@@ -200,14 +200,29 @@ class TestLanguageEnum:
 
     def test_invalid_language_rejected_on_repo(self):
         with pytest.raises(ValidationError):
-            Repo.model_validate({"url": "https://github.com/org/app.git", "language": "cobol"})
+            Repo.model_validate(
+                {"url": "https://github.com/org/app.git", "language": "cobol"}
+            )
 
     @pytest.mark.parametrize(
         "lang",
-        ["python", "javascript", "typescript", "go", "java", "rust", "ruby", "csharp", "cpp", "shell"],
+        [
+            "python",
+            "javascript",
+            "typescript",
+            "go",
+            "java",
+            "rust",
+            "ruby",
+            "csharp",
+            "cpp",
+            "shell",
+        ],
     )
     def test_valid_language_accepted(self, lang):
-        repo = Repo.model_validate({"url": "https://github.com/org/app.git", "language": lang})
+        repo = Repo.model_validate(
+            {"url": "https://github.com/org/app.git", "language": lang}
+        )
         assert repo.language == lang
 
 
@@ -314,7 +329,7 @@ class TestLintWorkflowRegistry:
     def test_lint_definition_metadata(self):
         entry = WORKFLOW_REGISTRY["lint"]
         assert entry.definition.id == "lint"
-        assert entry.definition.version == "1.0.0"
+        assert entry.definition.version == "1.0.2"
         assert entry.definition.name == "Lint"
 
     def test_lint_supported_languages(self):
@@ -331,13 +346,16 @@ class TestLintWorkflowRegistry:
         wf = WorkflowRef.model_validate({"name": "lint"})
         assert isinstance(wf.options, LintOptions)
         assert wf.options.python_version == "3.12"
-        assert wf.options.ruff_version == "0.4.4"
+        assert wf.options.ruff_version == "0.11.10"
         assert wf.options.node_version == "20"
         assert wf.options.runs_on == "ubuntu-latest"
 
     def test_lint_options_override(self):
         wf = WorkflowRef.model_validate(
-            {"name": "lint", "options": {"python_version": "3.11", "node_version": "18"}}
+            {
+                "name": "lint",
+                "options": {"python_version": "3.11", "node_version": "18"},
+            }
         )
         assert wf.options.python_version == "3.11"
         assert wf.options.node_version == "18"

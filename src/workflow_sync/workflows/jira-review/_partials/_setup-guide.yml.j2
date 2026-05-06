@@ -1,0 +1,110 @@
+    # =======================================================================
+    # SETUP GUIDE — Required secrets & configuration
+    # =======================================================================
+    #
+    # This workflow requires several GitHub Actions secrets to be configured
+    # in your repository (Settings → Secrets and variables → Actions → New
+    # repository secret).
+    #
+    # -----------------------------------------------------------------------
+    # JIRA SECRETS  (required for all modes)
+    # -----------------------------------------------------------------------
+    #
+    # JIRA_BASE_URL
+    #   Your Atlassian instance base URL — no trailing slash.
+    #   Example: https://your-org.atlassian.net
+    #
+    # JIRA_USER
+    #   The email address of the Atlassian account used for API calls.
+    #   Example: ci-bot@your-org.com
+    #
+    # JIRA_TOKEN
+    #   An Atlassian API token for the account above.
+    #   Generate one at: https://id.atlassian.com/manage-profile/security/api-tokens
+    #   ⚠️  This is NOT your Atlassian password — you must create a dedicated
+    #       API token. Tokens can be scoped to read-only if desired.
+    #
+    # How to verify JIRA credentials locally:
+    #   curl -u "you@org.com:YOUR_TOKEN" \
+    #        "https://your-org.atlassian.net/rest/api/3/myself" \
+    #        -H "Accept: application/json"
+    #   A 200 response with your account info means credentials are correct.
+    #
+    # -----------------------------------------------------------------------
+    # BRANCH NAMING CONVENTION
+    # -----------------------------------------------------------------------
+    #
+    # The workflow extracts the JIRA ticket key from the PR branch name.
+    # Your branch must contain a key matching [A-Z]{2,10}-[0-9]+, e.g.:
+    #
+    #   SCRUM-42-add-login-page       ✅  detected as SCRUM-42
+    #   feature/PROJ-7-refactor-auth  ✅  detected as PROJ-7
+    #   NOJIRA-cleanup-readme         ⏭️  explicitly skipped
+    #   fix-typo                      ⚠️  no key found, JIRA steps skipped
+    #
+{% if options.mode in ('anthropic', 'anthropic-agentic') %}
+    # -----------------------------------------------------------------------
+    # ANTHROPIC SECRETS  (required for mode: {{ options.mode }})
+    # -----------------------------------------------------------------------
+    #
+    # ANTHROPIC_API_KEY
+    #   Your Anthropic API key — used to call the Claude API for code review.
+    #   Generate one at: https://console.anthropic.com/settings/keys
+    #   ⚠️  Ensure your Anthropic account has API access enabled and
+    #       sufficient credits/quota for the model: {{ options.model }}.
+    #
+    # Model configured: {{ options.model }}
+    #   Adjust options.model in workflows.yaml to change the Claude model.
+    #   See available models: https://docs.anthropic.com/en/docs/about-claude/models
+    #
+{% endif %}
+{% if options.mode == 'copilot' %}
+    # -----------------------------------------------------------------------
+    # COPILOT REVIEWER  (required for mode: copilot)
+    # -----------------------------------------------------------------------
+    #
+    # No additional secrets are needed — this mode uses the built-in
+    # GITHUB_TOKEN and requests 'copilot-pull-request-reviewer' as a reviewer.
+    #
+    # Requirements:
+    #   • Your GitHub plan must include Copilot code review (GitHub Copilot
+    #     Enterprise or a compatible Copilot Business plan).
+    #   • The Copilot reviewer feature must be enabled for your organization:
+    #     Org Settings → Copilot → Policies → "Enable Copilot pull request
+    #     review suggestions"
+    #   • The repository must have Copilot enabled.
+    #   See: https://docs.github.com/en/copilot/using-github-copilot/code-review
+    #
+    # ⚠️  Common error: "Reviews may only be requested from collaborators"
+    #   This means 'copilot-pull-request-reviewer' is not recognized in your
+    #   repository. This happens when:
+    #     - Your GitHub plan does not include Copilot Enterprise or a
+    #       Copilot Business plan with code review enabled.
+    #     - The repository is personal (not under an organization), and
+    #       GitHub Copilot code review is not available for personal repos.
+    #     - The feature has not been enabled at the org level (see above).
+    #   The workflow handles this gracefully — a warning is logged and the
+    #   job continues. No action is required unless you intend to use Copilot
+    #   code review; in that case, verify your plan and org settings.
+    #
+{% endif %}
+    # -----------------------------------------------------------------------
+    # SUMMARY OF SECRETS FOR THIS WORKFLOW  (mode: {{ options.mode }})
+    # -----------------------------------------------------------------------
+    #
+    # Secret name         Required   Description
+    # ------------------  ---------  ----------------------------------------
+    # JIRA_BASE_URL       ✅ yes     Atlassian instance URL
+    # JIRA_USER           ✅ yes     Atlassian account email
+    # JIRA_TOKEN          ✅ yes     Atlassian API token
+{% if options.mode in ('anthropic', 'anthropic-agentic') %}
+    # ANTHROPIC_API_KEY   ✅ yes     Anthropic API key (Claude)
+{% else %}
+    # ANTHROPIC_API_KEY   ➖ n/a     Not used in {{ options.mode }} mode
+{% endif %}
+    # GITHUB_TOKEN        ✅ auto    Provided automatically by GitHub Actions
+    #
+    # Missing secrets cause steps to be skipped gracefully with a warning
+    # rather than failing the workflow with an error.
+    #
+    # =======================================================================

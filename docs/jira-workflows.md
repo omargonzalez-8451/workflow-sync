@@ -6,10 +6,11 @@ JIRA driven AI code review workflow, can be used on all or any repo.
 
 ## Shared steps (1–3)
 
-All three templates share the same first three steps. On every PR created or updated.
+All three modes share the same first three steps. On every PR created or updated.
 
 | # | Step | What it does |
 |---|------|--------------|
+
 | 1 | **Extract JIRA ticket** | Reads the branch name (`github.head_ref`) and extracts the first JIRA key matching `[A-Z]{2,10}-[0-9]+` (e.g. `PROJ-123`). If no key is found the remaining steps are skipped and the PR is flagged. |
 
 | 2 | **Fetch ticket from JIRA** | Calls the JIRA REST API (`GET /rest/api/3/issue/{key}`) with `JIRA_BASE_URL`, `JIRA_USER`, and `JIRA_TOKEN` secrets. Stores the ticket summary, status, and description for the next step. |
@@ -21,7 +22,7 @@ All three templates share the same first three steps. On every PR created or upd
 
 ---
 
-## Step 4 — where the three templates differ
+## Step 4 — where the three modes differ
 
 ### `jira-copilot` — Agente native gitub AI review, aka GPT
 

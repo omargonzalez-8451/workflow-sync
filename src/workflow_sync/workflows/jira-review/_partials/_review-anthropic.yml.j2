@@ -1,81 +1,86 @@
-      # -----------------------------------------------------------------------
-      # 4. Collect the PR diff and description, call Anthropic API, post review
-      # -----------------------------------------------------------------------
-      - name: Run Claude review via Anthropic API
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ANTHROPIC_MODEL: {{ options.model }}
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const { execSync } = require('child_process');
-            const https = require('https');
+    # -----------------------------------------------------------------------
+    # 4. Collect the PR diff and description, call Anthropic API, post review
+    # -----------------------------------------------------------------------
+    - name: Run Claude review via Anthropic API
+      env:
+        ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        ANTHROPIC_MODEL: {{ options.model }}
+      uses: actions/github-script@v7
+      with:
+        script: |
+          if (!process.env.ANTHROPIC_API_KEY) {
+            console.warn('⚠️  ANTHROPIC_API_KEY secret not configured — skipping Claude review');
+            return;
+          }
 
-            // --- collect diff (truncated to avoid token limits) ---
-            const diff = execSync(
-              `git diff origin/${{ github.base_ref }}...HEAD`,
-              { maxBuffer: 1024 * 1024 * 10 }
-            ).toString().slice(0, 30000);
+          const { execSync } = require('child_process');
+          const https = require('https');
 
-            const { data: pr } = await github.rest.pulls.get({
-              owner: context.repo.owner,
-              repo:  context.repo.repo,
-              pull_number: context.issue.number,
-            });
+          // --- collect diff (truncated to avoid token limits) ---
+          const diff = execSync(
+            `git diff origin/${{ github.base_ref }}...HEAD`,
+            { maxBuffer: 1024 * 1024 * 10 }
+          ).toString().slice(0, 30000);
 
-            const systemPrompt = [
-              'You are a senior software engineer performing a thorough code review.',
-              'You have been provided with a JIRA ticket (in the PR description) that',
-              'defines the requirements for this change. Your job is to:',
-              '1. Verify the diff satisfies all requirements in the ticket.',
-              '2. Identify bugs, security issues, or logic errors.',
-              '3. Suggest concrete improvements.',
-              'Be concise and use GitHub-flavoured Markdown in your response.',
-            ].join(' ');
+          const { data: pr } = await github.rest.pulls.get({
+            owner: context.repo.owner,
+            repo:  context.repo.repo,
+            pull_number: context.issue.number,
+          });
 
-            const userMessage = [
-              '## PR Description\n',
-              pr.body || '(no description)',
-              '\n\n## Code Diff\n```diff\n',
-              diff,
-              '\n```',
-            ].join('');
+          const systemPrompt = [
+            'You are a senior software engineer performing a thorough code review.',
+            'You have been provided with a JIRA ticket (in the PR description) that',
+            'defines the requirements for this change. Your job is to:',
+            '1. Verify the diff satisfies all requirements in the ticket.',
+            '2. Identify bugs, security issues, or logic errors.',
+            '3. Suggest concrete improvements.',
+            'Be concise and use GitHub-flavoured Markdown in your response.',
+          ].join(' ');
 
-            const payload = JSON.stringify({
-              model:      process.env.ANTHROPIC_MODEL,
-              max_tokens: 2048,
-              system:     systemPrompt,
-              messages:   [{ role: 'user', content: userMessage }],
-            });
+          const userMessage = [
+            '## PR Description\n',
+            pr.body || '(no description)',
+            '\n\n## Code Diff\n```diff\n',
+            diff,
+            '\n```',
+          ].join('');
 
-            const reviewText = await new Promise((resolve, reject) => {
-              const req = https.request({
-                hostname: 'api.anthropic.com',
-                path:     '/v1/messages',
-                method:   'POST',
-                headers: {
-                  'Content-Type':      'application/json',
-                  'x-api-key':         process.env.ANTHROPIC_API_KEY,
-                  'anthropic-version': '2023-06-01',
-                },
-              }, (res) => {
-                let body = '';
-                res.on('data', chunk => body += chunk);
-                res.on('end', () => {
-                  const parsed = JSON.parse(body);
-                  resolve(parsed.content?.[0]?.text || 'No response from Claude');
-                });
+          const payload = JSON.stringify({
+            model:      process.env.ANTHROPIC_MODEL,
+            max_tokens: 2048,
+            system:     systemPrompt,
+            messages:   [{ role: 'user', content: userMessage }],
+          });
+
+          const reviewText = await new Promise((resolve, reject) => {
+            const req = https.request({
+              hostname: 'api.anthropic.com',
+              path:     '/v1/messages',
+              method:   'POST',
+              headers: {
+                'Content-Type':      'application/json',
+                'x-api-key':         process.env.ANTHROPIC_API_KEY,
+                'anthropic-version': '2023-06-01',
+              },
+            }, (res) => {
+              let body = '';
+              res.on('data', chunk => body += chunk);
+              res.on('end', () => {
+                const parsed = JSON.parse(body);
+                resolve(parsed.content?.[0]?.text || 'No response from Claude');
               });
-              req.on('error', reject);
-              req.write(payload);
-              req.end();
             });
+            req.on('error', reject);
+            req.write(payload);
+            req.end();
+          });
 
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo:  context.repo.repo,
-              issue_number: context.issue.number,
-              body: `## 🤖 Claude Code Review\n\n${reviewText}`,
-            });
-            console.log('✅ Claude review posted as PR comment');
+          await github.rest.issues.createComment({
+            owner: context.repo.owner,
+            repo:  context.repo.repo,
+            issue_number: context.issue.number,
+            body: `## 🤖 Claude Code Review\n\n${reviewText}`,
+          });
+          console.log('✅ Claude review posted as PR comment');
