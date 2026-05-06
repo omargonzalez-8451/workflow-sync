@@ -312,6 +312,14 @@ def sync_cmd(
             )
             raise SystemExit(1)
 
+        behind_commits = list(local_repo.iter_commits(f"HEAD..{tracking}"))
+        if behind_commits:
+            console.print(
+                f"[red]✗[/red]  Local [bold]main[/bold] is {len(behind_commits)} commit(s) "
+                f"behind [bold]{tracking}[/bold]. Pull before running sync."
+            )
+            raise SystemExit(1)
+
     if dry_run:
         console.print(
             "[bold yellow]dry-run mode — no changes will be pushed[/bold yellow]"
