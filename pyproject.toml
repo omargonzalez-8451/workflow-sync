@@ -1,0 +1,35 @@
+[tool.poetry]
+name = "workflow-sync"
+version = "0.1.0"
+description = "Sync and standardize GitHub Actions workflows across multiple repositories"
+authors = []
+readme = "README.md"
+packages = [{ include = "workflow_sync", from = "src" }]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+pydantic = "^2.0"
+jinja2 = ">=3.1,<4"
+gitpython = ">=3.1,<4"
+pyyaml = ">=6.0,<7"
+click = ">=8.1,<9"
+rich = ">=13.0"
+packaging = ">=23.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = ">=7.4"
+pytest-cov = ">=4.0"
+
+[tool.poetry.scripts]
+workflow-sync = "workflow_sync.cli:cli"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.coverage.run]
+source = ["src"]

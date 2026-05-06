@@ -1,0 +1,10 @@
+{% block sync_header -%}
+# id: {{ workflow.id }}
+# title: {{ workflow.name }}
+# version: {{ workflow.version }}
+# description: {{ workflow.description }}
+{% endblock -%}
+{% block workflow_header -%}
+name: {{ workflow.name }}
+{% endblock -%}
+{% block workflow_content %}{% endblock %}

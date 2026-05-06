@@ -1,0 +1,14 @@
+repos:
+  - url: git@github.com:omargonzalez-8451/test-repo-one.git
+    language: python
+    workflows:
+      - name: jira-review
+      - name: lint
+
+  - url: git@github.com:omargonzalez-8451/test-repo-two.git
+    language: python
+    workflows:
+      - name: jira-review
+        options:
+          mode: copilot
+      - name: lint

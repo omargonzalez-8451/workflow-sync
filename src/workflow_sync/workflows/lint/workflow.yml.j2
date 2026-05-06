@@ -1,0 +1,48 @@
+{% extends '_common_partials/_workflow-base.yml.j2' %}
+
+{% block workflow_content %}
+  on:
+    pull_request:
+      types: [opened, synchronize, reopened]
+    push:
+      branches: [main]
+
+  jobs:
+    lint:
+      name: Lint
+      runs-on: {{ options.runs_on }}
+
+      steps:
+        - uses: actions/checkout@v4
+
+{% if repo.language == 'python' %}
+        - name: Set up Python {{ options.python_version }}
+          uses: actions/setup-python@v5
+          with:
+            python-version: "{{ options.python_version }}"
+
+        - name: Install ruff
+          run: pip install ruff=={{ options.ruff_version }}
+
+        - name: Run ruff lint
+          run: ruff check .
+
+        - name: Run ruff format check
+          run: ruff format --check .
+{% elif repo.language in ('javascript', 'typescript') %}
+        - name: Set up Node.js {{ options.node_version }}
+          uses: actions/setup-node@v4
+          with:
+            node-version: "{{ options.node_version }}"
+            cache: npm
+
+        - name: Install dependencies
+          run: npm ci
+
+        - name: Run ESLint
+          run: npx eslint .
+
+        - name: Run Prettier check
+          run: npx prettier --check .
+{% endif %}
+{% endblock %}
