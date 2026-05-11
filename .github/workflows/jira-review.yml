@@ -1,6 +1,6 @@
 # id: jira-review
 # title: JIRA Validator — AI Code Review
-# version: 2.0.6
+# version: 2.0.8
 # description: Validates PR branch against JIRA ticket requirements and runs an AI code review. Set options.mode to 'copilot' (default), 'anthropic', or 'anthropic-agentic'.
 name: JIRA Validator — AI Code Review
 
@@ -65,6 +65,7 @@ jobs:
     #   NOJIRA-cleanup-readme         ⏭️  explicitly skipped
     #   fix-typo                      ⚠️  no key found, JIRA steps skipped
     #
+    # This is a test, hellow to CAS team. TEST
 
 
     # -----------------------------------------------------------------------
