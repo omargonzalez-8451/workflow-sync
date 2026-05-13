@@ -1,6 +1,10 @@
+settings:
+  base_branch: main  # override with --branch/-b on the CLI if needed
+
 repos:
   - url: git@github.com:omargonzalez-8451/test-repo-one.git
     language: python
+    # branch: develop  # uncomment to override the base branch for this repo only
     workflows:
       - name: jira-review
       - name: lint
@@ -18,3 +22,8 @@ repos:
     workflows:
       - name: jira-review
       - name: lint
+
+  - url: git@github.com:8451LLC/map-product-groups.git
+    language: java
+    workflows:
+      - name: jira-review

@@ -257,6 +257,13 @@ def validate_cmd(config: str, workflows_dir: str) -> None:
     default=False,
     help="Push changes directly to the main branch instead of opening a PR branch.",
 )
+@click.option(
+    "--branch",
+    "-b",
+    default=None,
+    show_default=True,
+    help="Base branch to sync against in target repos. Overrides settings.base_branch in workflows.yaml (default: main).",
+)
 def sync_cmd(
     config: str,
     workflows_dir: str,
@@ -265,6 +272,7 @@ def sync_cmd(
     cache_dir: str,
     branch_prefix: str,
     auto_push: bool,
+    branch: str | None,
 ) -> None:
     """Fetch/pull repos and push workflow updates as new branches."""
     config_path = Path(config)
@@ -279,6 +287,9 @@ def sync_cmd(
     except Exception as exc:  # noqa: BLE001
         console.print(f"[red]✗  Config error:[/red] {exc}")
         raise SystemExit(1) from exc
+
+    if branch is not None:
+        cfg.settings.base_branch = branch
 
     # Validate that we are on main with a clean working tree before doing anything.
     try:
@@ -326,11 +337,12 @@ def sync_cmd(
         )
 
     if auto_push and not dry_run:
+        _base = cfg.settings.base_branch
         console.print(
-            "[bold red]WARNING:[/bold red] --auto-push will commit directly to the main branch without a PR."
+            f"[bold red]WARNING:[/bold red] --auto-push will commit directly to the [bold]{_base}[/bold] branch without a PR."
         )
         confirmed = click.confirm(
-            "Are you sure you want to push directly to main?", default=False
+            f"Are you sure you want to push directly to {_base}?", default=False
         )
         if not confirmed:
             console.print("[yellow]Aborted.[/yellow]")

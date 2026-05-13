@@ -358,7 +358,7 @@ def sync_repo(
                 {"repo": repo_config.name, "status": "clone_failed", "error": str(exc)}
             ]
 
-        base_branch = config.settings.base_branch
+        base_branch = repo_config.branch or config.settings.base_branch
         try:
             git_repo.git.checkout(base_branch)
         except git.GitCommandError:

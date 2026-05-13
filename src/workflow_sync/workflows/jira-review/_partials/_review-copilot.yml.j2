@@ -6,15 +6,23 @@
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
         script: |
+          // Try the reviewer API first (requires Copilot Business/Enterprise with code review enabled).
+          // Fall back to an @copilot comment, which works on any plan that has Copilot code review.
           try {
             await github.rest.pulls.requestReviewers({
               owner: context.repo.owner,
               repo:  context.repo.repo,
               pull_number: context.issue.number,
-              reviewers: ['copilot-pull-request-reviewer'],
+              reviewers: ['@copilot'],
             });
-            console.log('✅ Copilot review requested');
+            console.log('✅ Copilot reviewer assigned via API');
           } catch (err) {
-            // Copilot reviewer may already be assigned or not available on this plan
-            console.warn('⚠️  Could not request Copilot reviewer:', err.message);
+            console.warn('⚠️  requestReviewers failed, falling back to @copilot comment:', err.message);
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo:  context.repo.repo,
+              issue_number: context.issue.number,
+              body: '@copilot review',
+            });
+            console.log('✅ Copilot review requested via @copilot comment');
           }

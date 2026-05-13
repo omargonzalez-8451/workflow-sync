@@ -165,6 +165,10 @@ class Repo(BaseModel):
     language: Language = Field(
         ..., description="Primary programming language (e.g. python, javascript)"
     )
+    branch: str | None = Field(
+        default=None,
+        description="Override the base branch for this repo (falls back to settings.base_branch)",
+    )
     workflows: list[WorkflowRef] = Field(
         default_factory=list,
         description="Workflow templates to apply to this repository",
